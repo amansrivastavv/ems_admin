@@ -16,6 +16,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface SidebarProps {
   className?: string;
@@ -62,31 +63,41 @@ export function Sidebar({ className }: SidebarProps) {
   ];
 
   return (
-    <aside
+    <motion.aside
+      initial={false}
+      animate={{ width: collapsed ? 80 : 256 }}
+      transition={{ type: "spring", stiffness: 300, damping: 30 }}
       className={cn(
-        "relative flex h-screen flex-col border-r bg-card transition-all duration-300",
-        collapsed ? "w-16" : "w-64",
+        "relative flex h-screen flex-col border-r bg-card z-20",
         className
       )}
     >
-      <div className="flex h-16 items-center border-b px-4">
+      <div className="flex h-16 items-center border-b px-4 overflow-hidden">
         {/* Logo */}
-        {!collapsed && (
-          <span className="text-xl font-bold tracking-tight text-primary">
-            EMS Admin
-          </span>
-        )}
+        <AnimatePresence>
+          {!collapsed && (
+            <motion.span
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
+              className="text-xl font-bold tracking-tight text-primary whitespace-nowrap"
+            >
+              EMS Admin
+            </motion.span>
+          )}
+        </AnimatePresence>
         <Button
           variant="ghost"
           size="icon"
-          className="ml-auto"
+          className="ml-auto shrink-0"
           onClick={toggleSidebar}
         >
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </Button>
       </div>
 
-      <nav className="flex-1 space-y-2 overflow-y-auto py-4">
+      <nav className="flex-1 space-y-2 overflow-y-auto py-4 overflow-x-hidden">
         {menuItems.map((item) => {
           if (!item.roles.some((role) => hasRole(role as any))) return null;
 
@@ -96,29 +107,59 @@ export function Sidebar({ className }: SidebarProps) {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground relative group",
                 isActive ? "bg-accent text-accent-foreground" : "text-muted-foreground",
-                collapsed ? "justify-center" : "mx-2"
+                collapsed ? "justify-center mx-2" : "mx-4"
               )}
               title={collapsed ? item.label : undefined}
             >
-              <item.icon className="h-5 w-5" />
-              {!collapsed && <span>{item.label}</span>}
+              <item.icon className="h-5 w-5 shrink-0" />
+              <AnimatePresence>
+                {!collapsed && (
+                  <motion.span
+                    initial={{ opacity: 0, width: 0 }}
+                    animate={{ opacity: 1, width: "auto" }}
+                    exit={{ opacity: 0, width: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="whitespace-nowrap overflow-hidden"
+                  >
+                    {item.label}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+              
+              {collapsed && (
+                <div className="absolute left-full ml-2 rounded p-2 bg-popover text-popover-foreground text-xs shadow-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-nowrap">
+                  {item.label}
+                </div>
+              )}
             </Link>
           );
         })}
       </nav>
 
-      <div className="border-t p-4">
+      <div className="border-t p-4 overflow-hidden">
          <Button
             variant="outline"
             className={cn("w-full justify-start gap-2", collapsed && "justify-center px-0")}
             onClick={logout}
           >
-            <LogOut className="h-4 w-4" />
-            {!collapsed && "Logout"}
+            <LogOut className="h-4 w-4 shrink-0" />
+            <AnimatePresence>
+              {!collapsed && (
+                 <motion.span
+                 initial={{ opacity: 0, width: 0 }}
+                 animate={{ opacity: 1, width: "auto" }}
+                 exit={{ opacity: 0, width: 0 }}
+                 transition={{ duration: 0.2 }}
+                 className="whitespace-nowrap overflow-hidden"
+               >
+                 Logout
+               </motion.span>
+              )}
+            </AnimatePresence>
           </Button>
       </div>
-    </aside>
+    </motion.aside>
   );
 }

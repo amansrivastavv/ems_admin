@@ -3,8 +3,7 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { useAuth } from "@/hooks/useAuth";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { PageTransition } from "@/components/ui/page-transition";
 
 export default function DashboardLayout({
   children,
@@ -12,7 +11,6 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { loading, user } = useAuth();
-  const router = useRouter();
 
   // Basic protection for dashboard root layouts
   // Actually useAuth handles redirect, but we can return null while loading
@@ -32,10 +30,12 @@ export default function DashboardLayout({
   return (
     <div className="flex h-screen bg-muted/40 font-sans antialiased text-foreground">
       <Sidebar className="hidden border-r bg-background lg:block" />
-      <div className="flex flex-col flex-1 overflow-hidden transition-all duration-300">
+      <div className="flex flex-col flex-1 overflow-hidden">
         <Navbar />
-        <main className="flex-1 overflow-y-auto p-4 lg:p-8 bg-muted/20">
-          {children}
+        <main className="flex-1 overflow-y-auto p-4 lg:p-8 bg-muted/30">
+          <PageTransition>
+            {children}
+          </PageTransition>
         </main>
       </div>
     </div>
