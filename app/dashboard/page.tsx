@@ -2,6 +2,8 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserCheck, CalendarDays, TrendingUp } from "lucide-react";
+import { Overview } from "@/components/dashboard/overview";
+import { RecentActivity } from "@/components/dashboard/recent-activity";
 
 export default function DashboardPage() {
   return (
@@ -75,33 +77,16 @@ export default function DashboardPage() {
             <CardTitle>Overview</CardTitle>
           </CardHeader>
           <CardContent className="pl-2">
-            {/* Chart placeholder */}
-            <div className="h-[200px] w-full bg-muted/20 rounded flex items-center justify-center text-muted-foreground">
-              Chart Visualization Placeholder
-            </div>
+            <Overview />
           </CardContent>
         </Card>
         <Card className="col-span-3">
           <CardHeader>
             <CardTitle>Recent Activities</CardTitle>
-            <CardContent>
-                 <div className="space-y-4 mt-4">
-                    <div className="flex items-center">
-                        <span className="relative flex h-2 w-2 mr-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-500"></span>
-                        </span>
-                        <p className="text-sm text-muted-foreground">User X checked in at 9:00 AM</p>
-                    </div>
-                     <div className="flex items-center">
-                        <span className="relative flex h-2 w-2 mr-2">
-                           <span className="relative inline-flex rounded-full h-2 w-2 bg-gray-300"></span>
-                        </span>
-                        <p className="text-sm text-muted-foreground">System maintenance scheduled</p>
-                    </div>
-                 </div>
-            </CardContent>
           </CardHeader>
+          <CardContent>
+            <RecentActivity />
+          </CardContent>
         </Card>
       </div>
     </div>
