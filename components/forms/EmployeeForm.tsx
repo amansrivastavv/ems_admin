@@ -22,9 +22,10 @@ type EmployeeFormValues = z.infer<typeof employeeSchema>
 interface EmployeeFormProps {
   initialData?: EmployeeFormValues
   onSuccess?: () => void
+  onSubmit?: (data: EmployeeFormValues) => void | Promise<void>
 }
 
-export function EmployeeForm({ initialData, onSuccess }: EmployeeFormProps) {
+export function EmployeeForm({ initialData, onSuccess, onSubmit: onSubmitProp }: EmployeeFormProps) {
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
   
@@ -40,17 +41,26 @@ export function EmployeeForm({ initialData, onSuccess }: EmployeeFormProps) {
   })
 
   const onSubmit = async (data: EmployeeFormValues) => {
-    setIsLoading(true)
-    // Mock API call
-    setTimeout(() => {
-        console.log("Submitted:", data)
-        setIsLoading(false)
-        if (onSuccess) {
-            onSuccess();
-        } else {
-            router.push("/dashboard/employees")
-        }
-    }, 1000)
+      setIsLoading(true)
+      try {
+          if (onSubmitProp) {
+              await onSubmitProp(data);
+          } else {
+               // Fallback mock behavior if no submit handler provided
+               await new Promise(resolve => setTimeout(resolve, 1000));
+               console.log("Submitted:", data);
+          }
+          
+          if (onSuccess) {
+              onSuccess();
+          } else {
+              router.push("/dashboard/employees");
+          }
+      } catch (error) {
+          console.error("Submission failed", error);
+      } finally {
+          setIsLoading(false)
+      }
   }
 
   return (

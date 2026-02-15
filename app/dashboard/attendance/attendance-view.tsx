@@ -3,7 +3,7 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import { Calendar } from "@/components/ui/calendar"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { format, addDays, subDays, isSameDay } from "date-fns"
@@ -13,62 +13,84 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { useEmployeeContext, AttendanceStatus } from "@/context/EmployeeContext"
 
-type AttendanceStatus = "present" | "late" | "absent"
-
-interface AttendanceRecord {
+interface DisplayAttendanceRecord {
   id: string
+  employeeId: string
   employeeName: string
   role: string
   checkIn: string
   checkOut?: string
-  status: AttendanceStatus
+  status: AttendanceStatus 
   avatar?: string
 }
 
-// Mock data generator
-const getMockAttendance = (date: Date): AttendanceRecord[] => {
-  const day = date.getDate();
-  
-  if (day % 3 === 0) {
-      return [
-        { id: "1", employeeName: "Alice Williams", role: "Sales Rep", checkIn: "08:55 AM", checkOut: "05:00 PM", status: "present", avatar: "/avatars/04.png" },
-        { id: "2", employeeName: "Bob Johnson", role: "Frontend Dev", checkIn: "10:15 AM", status: "late", avatar: "/avatars/03.png" },
-      ]
-  }
-
-  return [
-    { id: "1", employeeName: "John Doe", role: "CEO", checkIn: "09:00 AM", checkOut: "06:00 PM", status: "present", avatar: "/avatars/01.png" },
-    { id: "2", employeeName: "Jane Smith", role: "HR Manager", checkIn: "09:45 AM", checkOut: "05:30 PM", status: "late", avatar: "/avatars/02.png" },
-    { id: "3", employeeName: "Mike Brown", role: "Developer", checkIn: "-", status: "absent", avatar: "/avatars/05.png" },
-    { id: "4", employeeName: "Sarah Connor", role: "Designer", checkIn: "08:30 AM", checkOut: "04:30 PM", status: "present", avatar: "/avatars/06.png" },
-    { id: "5", employeeName: "Emily Davis", role: "Marketing", checkIn: "09:00 AM", checkOut: "05:00 PM", status: "present", avatar: "/avatars/07.png" },
-  ]
-}
-
 export function AttendanceView() {
+  const { employees, attendance, markAttendance } = useEmployeeContext()
+
   const [date, setDate] = React.useState<Date>(new Date())
   const [filter, setFilter] = React.useState<AttendanceStatus | "all">("all")
   const [searchQuery, setSearchQuery] = React.useState("")
   const [isDialogOpen, setIsDialogOpen] = React.useState(false)
 
-  const rawData = React.useMemo(() => getMockAttendance(date), [date])
+  // Form State for "Mark Attendance"
+  const [selectedEmployeeId, setSelectedEmployeeId] = React.useState<string>("")
+  const [formStatus, setFormStatus] = React.useState<AttendanceStatus>("present")
+  const [checkInTime, setCheckInTime] = React.useState("09:00")
 
-  const filteredData = rawData.filter(record => {
+  // Generate display data by merging Employees with Attendance records for the selected date
+  const displayData: DisplayAttendanceRecord[] = React.useMemo(() => {
+    const dateString = format(date, "yyyy-MM-dd")
+    
+    return employees.map(emp => {
+        const record = attendance.find(a => a.employeeId === emp.id && a.date === dateString)
+        
+        return {
+            id: record ? record.id : `temp-${emp.id}`,
+            employeeId: emp.id,
+            employeeName: emp.name,
+            role: emp.role,
+            checkIn: record?.checkIn || "-",
+            checkOut: record?.checkOut,
+            status: record?.status || "absent", // Default to absent if no record
+            avatar: emp.avatarUrl
+        }
+    })
+  }, [employees, attendance, date])
+
+  const filteredData = displayData.filter(record => {
       const matchesFilter = filter === "all" || record.status === filter
       const matchesSearch = record.employeeName.toLowerCase().includes(searchQuery.toLowerCase()) || 
                            record.role.toLowerCase().includes(searchQuery.toLowerCase())
       return matchesFilter && matchesSearch
   })
 
+  // Recalculate stats based on the generated display data for this day
   const stats = {
-      present: rawData.filter(r => r.status === 'present').length,
-      late: rawData.filter(r => r.status === 'late').length,
-      absent: rawData.filter(r => r.status === 'absent').length,
+      present: displayData.filter(r => r.status === 'present').length,
+      late: displayData.filter(r => r.status === 'late').length,
+      absent: displayData.filter(r => r.status === 'absent').length,
   }
 
   const handlePrevDay = () => setDate(prev => subDays(prev, 1))
   const handleNextDay = () => setDate(prev => addDays(prev, 1))
+
+  const handleSaveAttendance = () => {
+      if (!selectedEmployeeId) return;
+
+      markAttendance({
+          employeeId: selectedEmployeeId,
+          date: format(date, "yyyy-MM-dd"),
+          status: formStatus,
+          checkIn: checkInTime,
+          checkOut: formStatus === 'present' ? '17:00' : undefined // Mock checkout for simplicity
+      })
+      setIsDialogOpen(false)
+      // Reset form
+      setSelectedEmployeeId("")
+      setFormStatus("present")
+  }
 
   return (
     <div className="flex flex-col space-y-6">
@@ -148,21 +170,30 @@ export function AttendanceView() {
                                 <DialogHeader>
                                     <DialogTitle>Mark Attendance Manually</DialogTitle>
                                     <DialogDescription>
-                                        Manually record check-in/out for an employee.
+                                        Record check-in/out for an employee on {format(date, "PPP")}.
                                     </DialogDescription>
                                 </DialogHeader>
                                 <div className="grid gap-4 py-4">
                                     <div className="grid grid-cols-4 items-center gap-4">
-                                        <Label htmlFor="name" className="text-right">
+                                        <Label htmlFor="employee" className="text-right">
                                             Employee
                                         </Label>
-                                        <Input id="name" value="John Doe" className="col-span-3" />
+                                        <Select onValueChange={setSelectedEmployeeId} value={selectedEmployeeId}>
+                                            <SelectTrigger className="col-span-3">
+                                                 <SelectValue placeholder="Select employee" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {employees.map(emp => (
+                                                    <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                     <div className="grid grid-cols-4 items-center gap-4">
                                         <Label htmlFor="status" className="text-right">
                                             Status
                                         </Label>
-                                        <Select defaultValue="present">
+                                        <Select value={formStatus} onValueChange={(v: any) => setFormStatus(v)}>
                                             <SelectTrigger className="col-span-3">
                                                  <SelectValue placeholder="Select status" />
                                             </SelectTrigger>
@@ -178,11 +209,17 @@ export function AttendanceView() {
                                         <Label htmlFor="time" className="text-right">
                                             Check In
                                         </Label>
-                                        <Input id="time" type="time" className="col-span-3" defaultValue="09:00" />
+                                        <Input 
+                                            id="time" 
+                                            type="time" 
+                                            className="col-span-3" 
+                                            value={checkInTime}
+                                            onChange={(e) => setCheckInTime(e.target.value)}
+                                        />
                                     </div>
                                 </div>
                                 <DialogFooter>
-                                    <Button onClick={() => setIsDialogOpen(false)}>Save Record</Button>
+                                    <Button onClick={handleSaveAttendance} disabled={!selectedEmployeeId}>Save Record</Button>
                                 </DialogFooter>
                             </DialogContent>
                         </Dialog>
@@ -278,12 +315,15 @@ export function AttendanceView() {
                                         
                                         <Badge variant={
                                                 record.status === 'present' ? 'default' : 
-                                                record.status === 'late' ? 'secondary' : 'destructive'
+                                                record.status === 'late' ? 'secondary' : 
+                                                record.status === 'half-day' ? 'warning' : 'destructive'
                                             }
                                             className={
                                                 cn("w-24 justify-center py-1", 
                                                 record.status === 'present' ? 'bg-green-500 hover:bg-green-600' :
-                                                record.status === 'late' ? 'bg-yellow-500 hover:bg-yellow-600 text-white' : ''
+                                                record.status === 'late' ? 'bg-yellow-500 hover:bg-yellow-600 text-white' : 
+                                                record.status === 'half-day' ? 'bg-orange-500 hover:bg-orange-600 text-white' : 
+                                                ''
                                                 )
                                             }
                                         >

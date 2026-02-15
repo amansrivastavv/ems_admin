@@ -6,7 +6,9 @@ import {
   LayoutDashboard,
   Users,
   CalendarCheck,
+  Calendar,
   FileText,
+  DollarSign,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -47,6 +49,18 @@ export function Sidebar({ className }: SidebarProps) {
       icon: CalendarCheck,
       href: "/dashboard/attendance",
       roles: ["admin", "hr", "employee"],
+    },
+    {
+      label: "Leave",
+      icon: Calendar,
+      href: "/dashboard/leave",
+      roles: ["admin", "hr", "employee"],
+    },
+    {
+      label: "Payroll",
+      icon: DollarSign,
+      href: "/dashboard/payroll",
+      roles: ["admin", "hr"],
     },
     {
       label: "Reports",
