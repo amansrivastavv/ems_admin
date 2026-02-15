@@ -1,12 +1,18 @@
 "use client"
 
 import * as React from "react"
+import { cn } from "@/lib/utils"
 import { Calendar } from "@/components/ui/calendar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { format } from "date-fns"
-import { CheckCheck, Clock, XCircle } from "lucide-react"
+import { format, addDays, subDays, isSameDay } from "date-fns"
+import { CheckCheck, Clock, XCircle, Search, Filter, Plus, ChevronLeft, ChevronRight, UserPlus } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 
 type AttendanceStatus = "present" | "late" | "absent"
 
@@ -20,9 +26,8 @@ interface AttendanceRecord {
   avatar?: string
 }
 
-// Mock data generator - would be an API call in real app
+// Mock data generator
 const getMockAttendance = (date: Date): AttendanceRecord[] => {
-  // Simulate date-specific data
   const day = date.getDate();
   
   if (day % 3 === 0) {
@@ -33,153 +38,267 @@ const getMockAttendance = (date: Date): AttendanceRecord[] => {
   }
 
   return [
-    {
-      id: "1",
-      employeeName: "John Doe",
-      role: "CEO",
-      checkIn: "09:00 AM",
-      checkOut: "06:00 PM",
-      status: "present",
-      avatar: "/avatars/01.png"
-    },
-    {
-      id: "2",
-      employeeName: "Jane Smith",
-      role: "HR Manager",
-      checkIn: "09:45 AM",
-      checkOut: "05:30 PM",
-      status: "late",
-      avatar: "/avatars/02.png"
-    },
-    {
-      id: "3",
-      employeeName: "Mike Brown",
-      role: "Developer",
-      checkIn: "-",
-      status: "absent",
-      avatar: "/avatars/05.png"
-    },
-     {
-      id: "4",
-      employeeName: "Sarah Connor",
-      role: "Designer",
-      checkIn: "08:30 AM",
-      checkOut: "04:30 PM",
-      status: "present",
-      avatar: "/avatars/06.png"
-    },
+    { id: "1", employeeName: "John Doe", role: "CEO", checkIn: "09:00 AM", checkOut: "06:00 PM", status: "present", avatar: "/avatars/01.png" },
+    { id: "2", employeeName: "Jane Smith", role: "HR Manager", checkIn: "09:45 AM", checkOut: "05:30 PM", status: "late", avatar: "/avatars/02.png" },
+    { id: "3", employeeName: "Mike Brown", role: "Developer", checkIn: "-", status: "absent", avatar: "/avatars/05.png" },
+    { id: "4", employeeName: "Sarah Connor", role: "Designer", checkIn: "08:30 AM", checkOut: "04:30 PM", status: "present", avatar: "/avatars/06.png" },
+    { id: "5", employeeName: "Emily Davis", role: "Marketing", checkIn: "09:00 AM", checkOut: "05:00 PM", status: "present", avatar: "/avatars/07.png" },
   ]
 }
 
 export function AttendanceView() {
-  const [date, setDate] = React.useState<Date | undefined>(new Date())
-  
-  // In a real app, use SWR or React Query here
-  const attendanceData = date ? getMockAttendance(date) : []
+  const [date, setDate] = React.useState<Date>(new Date())
+  const [filter, setFilter] = React.useState<AttendanceStatus | "all">("all")
+  const [searchQuery, setSearchQuery] = React.useState("")
+  const [isDialogOpen, setIsDialogOpen] = React.useState(false)
+
+  const rawData = React.useMemo(() => getMockAttendance(date), [date])
+
+  const filteredData = rawData.filter(record => {
+      const matchesFilter = filter === "all" || record.status === filter
+      const matchesSearch = record.employeeName.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                           record.role.toLowerCase().includes(searchQuery.toLowerCase())
+      return matchesFilter && matchesSearch
+  })
 
   const stats = {
-      present: attendanceData.filter(r => r.status === 'present').length,
-      late: attendanceData.filter(r => r.status === 'late').length,
-      absent: attendanceData.filter(r => r.status === 'absent').length,
+      present: rawData.filter(r => r.status === 'present').length,
+      late: rawData.filter(r => r.status === 'late').length,
+      absent: rawData.filter(r => r.status === 'absent').length,
   }
+
+  const handlePrevDay = () => setDate(prev => subDays(prev, 1))
+  const handleNextDay = () => setDate(prev => addDays(prev, 1))
 
   return (
     <div className="flex flex-col space-y-6">
+        
+        {/* Summary Cards */}
         <div className="grid gap-4 md:grid-cols-3">
-             <Card>
-                <CardHeader className="pb-2">
+             <Card 
+                className={`cursor-pointer transition-all hover:shadow-md ${filter === 'present' ? 'ring-2 ring-green-500' : ''}`}
+                onClick={() => setFilter(filter === 'present' ? 'all' : 'present')}
+             >
+                <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
                     <CardTitle className="text-sm font-medium">Present</CardTitle>
+                    <CheckCheck className="h-4 w-4 text-green-500" />
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold text-green-600">{stats.present}</div>
+                    <p className="text-xs text-muted-foreground">Employees on time</p>
                 </CardContent>
             </Card>
-            <Card>
-                <CardHeader className="pb-2">
+            <Card 
+                className={`cursor-pointer transition-all hover:shadow-md ${filter === 'late' ? 'ring-2 ring-yellow-500' : ''}`}
+                onClick={() => setFilter(filter === 'late' ? 'all' : 'late')}
+            >
+                <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
                     <CardTitle className="text-sm font-medium">Late</CardTitle>
+                     <Clock className="h-4 w-4 text-yellow-500" />
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold text-yellow-600">{stats.late}</div>
+                    <p className="text-xs text-muted-foreground">Arrived after 9:30 AM</p>
                 </CardContent>
             </Card>
-            <Card>
-                <CardHeader className="pb-2">
+            <Card 
+                className={`cursor-pointer transition-all hover:shadow-md ${filter === 'absent' ? 'ring-2 ring-red-500' : ''}`}
+                onClick={() => setFilter(filter === 'absent' ? 'all' : 'absent')}
+            >
+                <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
                     <CardTitle className="text-sm font-medium">Absent</CardTitle>
+                    <XCircle className="h-4 w-4 text-red-500" />
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold text-red-600">{stats.absent}</div>
+                    <p className="text-xs text-muted-foreground">Not checked in</p>
                 </CardContent>
             </Card>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-3">
-            <CardHeader>
-            <CardTitle>Select Date</CardTitle>
-            <CardDescription>View attendance records by date</CardDescription>
-            </CardHeader>
-            <CardContent className="flex justify-center">
-                <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={setDate}
-                    className="rounded-md border shadow-sm"
-                />
-            </CardContent>
-        </Card>
-
-        <Card className="col-span-4">
-            <CardHeader>
-            <div className="flex items-center justify-between">
-                <CardTitle>
-                    Attendance for {date ? format(date, "PPP") : "Selected Date"}
-                </CardTitle>
-
+        <div className="grid gap-6 md:grid-cols-[300px_1fr]">
+            
+            {/* Left Column: Calendar & Actions */}
+            <div className="space-y-6">
+                <Card>
+                    <CardContent className="p-3">
+                        <Calendar
+                            mode="single"
+                            selected={date}
+                            onSelect={(d) => d && setDate(d)}
+                            initialFocus
+                            className="rounded-md border shadow-sm w-full"
+                        />
+                    </CardContent>
+                </Card>
+                
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-sm">Quick Actions</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                            <DialogTrigger asChild>
+                                <Button className="w-full justify-start" variant="outline">
+                                    <UserPlus className="mr-2 h-4 w-4" />
+                                    Mark Attendance
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Mark Attendance Manually</DialogTitle>
+                                    <DialogDescription>
+                                        Manually record check-in/out for an employee.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="grid gap-4 py-4">
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="name" className="text-right">
+                                            Employee
+                                        </Label>
+                                        <Input id="name" value="John Doe" className="col-span-3" />
+                                    </div>
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="status" className="text-right">
+                                            Status
+                                        </Label>
+                                        <Select defaultValue="present">
+                                            <SelectTrigger className="col-span-3">
+                                                 <SelectValue placeholder="Select status" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="present">Present</SelectItem>
+                                                <SelectItem value="late">Late</SelectItem>
+                                                <SelectItem value="absent">Absent</SelectItem>
+                                                <SelectItem value="half-day">Half Day</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                     <div className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor="time" className="text-right">
+                                            Check In
+                                        </Label>
+                                        <Input id="time" type="time" className="col-span-3" defaultValue="09:00" />
+                                    </div>
+                                </div>
+                                <DialogFooter>
+                                    <Button onClick={() => setIsDialogOpen(false)}>Save Record</Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+                        
+                        <Button className="w-full justify-start" variant="outline">
+                            <Filter className="mr-2 h-4 w-4" />
+                            Export Report
+                        </Button>
+                    </CardContent>
+                </Card>
             </div>
-            </CardHeader>
-            <CardContent>
-                <div className="space-y-4">
-                    {attendanceData.length === 0 ? (
-                        <div className="text-center py-8 text-muted-foreground">No records found for this date.</div>
-                    ) : (
-                        attendanceData.map((record) => (
-                        <div key={record.id} className="flex items-center justify-between p-4 border rounded-lg bg-card hover:bg-accent/5 transition-colors">
-                            <div className="flex items-center space-x-4">
-                                <Avatar>
-                                    <AvatarImage src={record.avatar} />
-                                    <AvatarFallback>{record.employeeName.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                                <div>
-                                    <p className="font-medium leading-none">{record.employeeName}</p>
-                                    <p className="text-sm text-muted-foreground mt-1">{record.role}</p>
-                                </div>
-                            </div>
-                            
-                            <div className="flex items-center gap-4">
-                                <div className="text-right hidden sm:block">
-                                    <p className="text-sm font-medium">In: {record.checkIn}</p>
-                                    {record.checkOut && <p className="text-xs text-muted-foreground">Out: {record.checkOut}</p>}
-                                </div>
-                                <Badge variant={
-                                        record.status === 'present' ? 'default' : 
-                                        record.status === 'late' ? 'secondary' : 'destructive'
-                                    }
-                                    className={
-                                        record.status === 'present' ? 'bg-green-500 hover:bg-green-600' :
-                                        record.status === 'late' ? 'bg-yellow-500 hover:bg-yellow-600 text-white' : ''
-                                    }
-                                >
-                                    {record.status === 'present' && <CheckCheck className="h-3 w-3 mr-1" />}
-                                    {record.status === 'late' && <Clock className="h-3 w-3 mr-1" />}
-                                    {record.status === 'absent' && <XCircle className="h-3 w-3 mr-1" />}
-                                    {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
-                                </Badge>
-                            </div>
+
+            {/* Right Column: List View */}
+            <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center bg-card p-4 rounded-lg border shadow-sm">
+                    <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="icon" onClick={handlePrevDay}>
+                            <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <h2 className="text-lg font-semibold flex items-center gap-2">
+                            {format(date, "MMMM do, yyyy")}
+                            {isSameDay(date, new Date()) && <Badge variant="secondary" className="text-xs">Today</Badge>}
+                        </h2>
+                        <Button variant="ghost" size="icon" onClick={handleNextDay}>
+                            <ChevronRight className="h-4 w-4" />
+                        </Button>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <div className="relative w-full sm:w-64">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                type="search"
+                                placeholder="Search employee..."
+                                className="pl-8 bg-background"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
                         </div>
-                    )))}
+                        <Select value={filter} onValueChange={(v: any) => setFilter(v)}>
+                            <SelectTrigger className="w-[140px]">
+                                <SelectValue placeholder="Filter Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Status</SelectItem>
+                                <SelectItem value="present">Present</SelectItem>
+                                <SelectItem value="late">Late</SelectItem>
+                                <SelectItem value="absent">Absent</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
-            </CardContent>
-        </Card>
+
+                <Card className="min-h-[500px]">
+                    <CardContent className="p-0">
+                        <div className="divide-y">
+                            {filteredData.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+                                    <div className="bg-muted/50 p-4 rounded-full mb-4">
+                                        <Search className="h-8 w-8 opacity-50" />
+                                    </div>
+                                    <p className="text-lg font-medium">No records found</p>
+                                    <p className="text-sm">Try adjusting your search or filter.</p>
+                                    <Button variant="link" onClick={() => {setFilter('all'); setSearchQuery('')}}>Clear filters</Button>
+                                </div>
+                            ) : (
+                                filteredData.map((record) => (
+                                <div key={record.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 hover:bg-muted/30 transition-colors group">
+                                    <div className="flex items-center space-x-4 mb-3 sm:mb-0">
+                                        <Avatar className="h-10 w-10 border-2 border-background">
+                                            <AvatarImage src={record.avatar} />
+                                            <AvatarFallback className="bg-primary/10 text-primary">{record.employeeName.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                        <div>
+                                            <p className="font-medium leading-none text-base">{record.employeeName}</p>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground bg-transparent border-muted">{record.role}</Badge>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-6 w-full sm:w-auto justify-between sm:justify-end">
+                                        <div className="grid grid-cols-2 gap-x-8 text-sm">
+                                            <div>
+                                                <span className="text-muted-foreground text-xs uppercase tracking-wider block">Check In</span>
+                                                <span className="font-medium font-mono">{record.checkIn}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-muted-foreground text-xs uppercase tracking-wider block">Check Out</span>
+                                                <span className="font-medium font-mono">{record.checkOut || "--:--"}</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <Badge variant={
+                                                record.status === 'present' ? 'default' : 
+                                                record.status === 'late' ? 'secondary' : 'destructive'
+                                            }
+                                            className={
+                                                cn("w-24 justify-center py-1", 
+                                                record.status === 'present' ? 'bg-green-500 hover:bg-green-600' :
+                                                record.status === 'late' ? 'bg-yellow-500 hover:bg-yellow-600 text-white' : ''
+                                                )
+                                            }
+                                        >
+                                            {record.status === 'present' && <CheckCheck className="h-3.5 w-3.5 mr-1.5" />}
+                                            {record.status === 'late' && <Clock className="h-3.5 w-3.5 mr-1.5" />}
+                                            {record.status === 'absent' && <XCircle className="h-3.5 w-3.5 mr-1.5" />}
+                                            <span className="capitalize">{record.status}</span>
+                                        </Badge>
+                                    </div>
+                                </div>
+                            )))}
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
         </div>
     </div>
   )

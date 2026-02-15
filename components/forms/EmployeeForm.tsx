@@ -21,9 +21,10 @@ type EmployeeFormValues = z.infer<typeof employeeSchema>
 
 interface EmployeeFormProps {
   initialData?: EmployeeFormValues
+  onSuccess?: () => void
 }
 
-export function EmployeeForm({ initialData }: EmployeeFormProps) {
+export function EmployeeForm({ initialData, onSuccess }: EmployeeFormProps) {
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
   
@@ -44,7 +45,11 @@ export function EmployeeForm({ initialData }: EmployeeFormProps) {
     setTimeout(() => {
         console.log("Submitted:", data)
         setIsLoading(false)
-        router.push("/dashboard/employees")
+        if (onSuccess) {
+            onSuccess();
+        } else {
+            router.push("/dashboard/employees")
+        }
     }, 1000)
   }
 

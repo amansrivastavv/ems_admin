@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { useRouter } from "next/navigation"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { EmployeeForm } from "@/components/forms/EmployeeForm"
+import { useState } from "react"
 
 const data: Employee[] = [
   {
@@ -53,6 +56,7 @@ const data: Employee[] = [
 
 export default function EmployeesPage() {
     const router = useRouter();
+    const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   return (
     <div className="space-y-4">
@@ -63,9 +67,19 @@ export default function EmployeesPage() {
                     Manage your employees and their roles here.
                 </p>
             </div>
-             <Button onClick={() => router.push('/dashboard/employees/new')}>
-                <Plus className="mr-2 h-4 w-4" /> Add Employee
-            </Button>
+             <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+                <SheetTrigger asChild>
+                    <Button>
+                        <Plus className="mr-2 h-4 w-4" /> Add Employee
+                    </Button>
+                </SheetTrigger>
+                <SheetContent className="sm:max-w-xl overflow-y-auto">
+                    <SheetHeader className="mb-6">
+                        <SheetTitle>Add New Employee</SheetTitle>
+                    </SheetHeader>
+                    <EmployeeForm onSuccess={() => setIsSheetOpen(false)} />
+                </SheetContent>
+             </Sheet>
         </div>
         
         <Card>
