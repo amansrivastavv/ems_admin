@@ -7,18 +7,28 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { LeaveFormValues, LeaveRequestForm } from "@/components/forms/LeaveRequestForm" // Import types
-import { Calendar, CheckCircle2, Clock, XCircle, Search, Filter } from "lucide-react"
+import { Calendar, CheckCircle2, Clock, XCircle, Search } from "lucide-react"
 import { useState, useMemo } from "react"
 import { useEmployeeContext } from "@/context/EmployeeContext"
 import { format, differenceInDays } from "date-fns"
+import { useAuth } from "@/hooks/useAuth"
 
 export default function LeavePage() {
+  const { user } = useAuth()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const { employees, leaveRequests, addLeaveRequest, updateLeaveStatus } = useEmployeeContext()
 
+  // Filter requests if user is employee
+  const displayRequests = useMemo(() => {
+      if (user?.role === 'employee') {
+          return leaveRequests.filter(req => req.employeeId === user.id)
+      }
+      return leaveRequests
+  }, [leaveRequests, user])
+
   // Join leave requests with employee details
   const enrichedRequests = useMemo(() => {
-    return leaveRequests.map(req => {
+    return displayRequests.map(req => {
         const emp = employees.find(e => e.id === req.employeeId)
         return {
             ...req,
@@ -26,13 +36,13 @@ export default function LeavePage() {
             searchStr: `${emp?.name} ${req.type} ${req.status}`.toLowerCase()
         }
     })
-  }, [leaveRequests, employees])
+  }, [displayRequests, employees])
   
   const stats = {
-      pending: leaveRequests.filter(r => r.status === 'Pending').length,
-      approved: leaveRequests.filter(r => r.status === 'Approved').length,
-      rejected: leaveRequests.filter(r => r.status === 'Rejected').length,
-      total: leaveRequests.length
+      pending: displayRequests.filter(r => r.status === 'Pending').length,
+      approved: displayRequests.filter(r => r.status === 'Approved').length,
+      rejected: displayRequests.filter(r => r.status === 'Rejected').length,
+      total: displayRequests.length
   }
 
   const handleAddLeave = async (data: LeaveFormValues) => {
@@ -76,6 +86,7 @@ export default function LeavePage() {
                     employees={employees}
                     onSubmit={handleAddLeave}
                     onSuccess={() => setIsDialogOpen(false)} 
+                    defaultEmployeeId={user?.role === 'employee' ? user.id : undefined}
                 />
             </DialogContent>
         </Dialog>
@@ -179,7 +190,7 @@ export default function LeavePage() {
                                 </Badge>
                             </TableCell>
                             <TableCell className="text-right">
-                                {req.status === 'Pending' && (
+                                {user?.role !== 'employee' && req.status === 'Pending' && (
                                     <div className="flex justify-end gap-2">
                                         <Button 
                                             size="sm" 

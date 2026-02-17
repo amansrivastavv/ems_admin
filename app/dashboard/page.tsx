@@ -4,8 +4,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserCheck, CalendarDays, TrendingUp } from "lucide-react";
 import { Overview } from "@/components/dashboard/overview";
 import { RecentActivity } from "@/components/dashboard/recent-activity";
+import { useAuth } from "@/hooks/useAuth";
+import { EmployeeDashboard } from "@/components/dashboard/employee-dashboard";
 
 export default function DashboardPage() {
+  const { user } = useAuth();
+
+  if (user?.role === "employee") {
+    return <EmployeeDashboard />;
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between space-y-2">

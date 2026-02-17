@@ -28,9 +28,10 @@ interface LeaveRequestFormProps {
   employees: { id: string; name: string }[]
   onSuccess?: () => void
   onSubmit?: (data: LeaveFormValues) => void | Promise<void>
+  defaultEmployeeId?: string
 }
 
-export function LeaveRequestForm({ employees, onSuccess, onSubmit: onSubmitProp }: LeaveRequestFormProps) {
+export function LeaveRequestForm({ employees, onSuccess, onSubmit: onSubmitProp, defaultEmployeeId }: LeaveRequestFormProps) {
   const [isLoading, setIsLoading] = useState(false)
   
   const {
@@ -41,6 +42,9 @@ export function LeaveRequestForm({ employees, onSuccess, onSubmit: onSubmitProp 
     formState: { errors },
   } = useForm<LeaveFormValues>({
     resolver: zodResolver(leaveSchema),
+    defaultValues: {
+        employeeId: defaultEmployeeId
+    }
   })
 
   const startDate = watch("startDate")
@@ -67,9 +71,13 @@ export function LeaveRequestForm({ employees, onSuccess, onSubmit: onSubmitProp 
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       <div className="space-y-4">
         
-          <div className="space-y-2">
+          <div className={`space-y-2 ${defaultEmployeeId ? 'hidden' : ''}`}>
             <Label htmlFor="employee">Employee</Label>
-            <Select onValueChange={(val) => setValue("employeeId", val)}>
+            <Select 
+                onValueChange={(val) => setValue("employeeId", val)} 
+                defaultValue={defaultEmployeeId}
+                disabled={!!defaultEmployeeId}
+            >
                 <SelectTrigger>
                     <SelectValue placeholder="Select employee" />
                 </SelectTrigger>

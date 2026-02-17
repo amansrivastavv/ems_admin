@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { useAuth } from "@/hooks/useAuth"
+import { Role, User } from "@/types/user"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -36,14 +37,18 @@ export default function LoginPage() {
     // await api.post('/auth/login', data)
     setTimeout(() => {
         // Mock success
-        const mockUser = {
-            id: '1',
-            name: 'John Doe',
+        const isEmployee = data.email.includes("employee");
+        const role: Role = isEmployee ? 'employee' : 'admin';
+        
+        const mockUser: User = {
+            id: isEmployee ? '489e1d43' : '1',
+            name: isEmployee ? 'Bob Johnson' : 'John Doe',
             email: data.email,
-            role: 'admin' as const, // For demo, login as admin
+            role: role, 
             token: 'mock-jwt-token-123',
         }
-        login(mockUser.token, mockUser)
+        
+        login(mockUser.token, mockUser) 
         setIsLoading(false)
     }, 1000)
   }

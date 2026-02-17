@@ -3,17 +3,18 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import { Calendar } from "@/components/ui/calendar"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { format, addDays, subDays, isSameDay } from "date-fns"
-import { CheckCheck, Clock, XCircle, Search, Filter, Plus, ChevronLeft, ChevronRight, UserPlus } from "lucide-react"
+import { CheckCheck, Clock, XCircle, Search, Filter, ChevronLeft, ChevronRight, UserPlus } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { useEmployeeContext, AttendanceStatus } from "@/context/EmployeeContext"
+import { useAuth } from "@/hooks/useAuth"
 
 interface DisplayAttendanceRecord {
   id: string
@@ -27,6 +28,7 @@ interface DisplayAttendanceRecord {
 }
 
 export function AttendanceView() {
+  const { user } = useAuth()
   const { employees, attendance, markAttendance } = useEmployeeContext()
 
   const [date, setDate] = React.useState<Date>(new Date())
@@ -43,7 +45,12 @@ export function AttendanceView() {
   const displayData: DisplayAttendanceRecord[] = React.useMemo(() => {
     const dateString = format(date, "yyyy-MM-dd")
     
-    return employees.map(emp => {
+    // Filter employees if user is an employee
+    const targetEmployees = user?.role === 'employee' 
+      ? employees.filter(e => e.id === user.id)
+      : employees;
+
+    return targetEmployees.map(emp => {
         const record = attendance.find(a => a.employeeId === emp.id && a.date === dateString)
         
         return {
@@ -57,7 +64,7 @@ export function AttendanceView() {
             avatar: emp.avatarUrl
         }
     })
-  }, [employees, attendance, date])
+  }, [employees, attendance, date, user])
 
   const filteredData = displayData.filter(record => {
       const matchesFilter = filter === "all" || record.status === filter
@@ -159,75 +166,79 @@ export function AttendanceView() {
                         <CardTitle className="text-sm">Quick Actions</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2">
-                        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                            <DialogTrigger asChild>
+                        {user?.role !== 'employee' && (
+                            <>
+                                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button className="w-full justify-start" variant="outline">
+                                            <UserPlus className="mr-2 h-4 w-4" />
+                                            Mark Attendance
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Mark Attendance Manually</DialogTitle>
+                                            <DialogDescription>
+                                                Record check-in/out for an employee on {format(date, "PPP")}.
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <div className="grid gap-4 py-4">
+                                            <div className="grid grid-cols-4 items-center gap-4">
+                                                <Label htmlFor="employee" className="text-right">
+                                                    Employee
+                                                </Label>
+                                                <Select onValueChange={setSelectedEmployeeId} value={selectedEmployeeId}>
+                                                    <SelectTrigger className="col-span-3">
+                                                         <SelectValue placeholder="Select employee" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {employees.map(emp => (
+                                                            <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="grid grid-cols-4 items-center gap-4">
+                                                <Label htmlFor="status" className="text-right">
+                                                    Status
+                                                </Label>
+                                                <Select value={formStatus} onValueChange={(v: any) => setFormStatus(v)}>
+                                                    <SelectTrigger className="col-span-3">
+                                                         <SelectValue placeholder="Select status" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="present">Present</SelectItem>
+                                                        <SelectItem value="late">Late</SelectItem>
+                                                        <SelectItem value="absent">Absent</SelectItem>
+                                                        <SelectItem value="half-day">Half Day</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                             <div className="grid grid-cols-4 items-center gap-4">
+                                                <Label htmlFor="time" className="text-right">
+                                                    Check In
+                                                </Label>
+                                                <Input 
+                                                    id="time" 
+                                                    type="time" 
+                                                    className="col-span-3" 
+                                                    value={checkInTime}
+                                                    onChange={(e) => setCheckInTime(e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                        <DialogFooter>
+                                            <Button onClick={handleSaveAttendance} disabled={!selectedEmployeeId}>Save Record</Button>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+                                
                                 <Button className="w-full justify-start" variant="outline">
-                                    <UserPlus className="mr-2 h-4 w-4" />
-                                    Mark Attendance
+                                    <Filter className="mr-2 h-4 w-4" />
+                                    Export Report
                                 </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>Mark Attendance Manually</DialogTitle>
-                                    <DialogDescription>
-                                        Record check-in/out for an employee on {format(date, "PPP")}.
-                                    </DialogDescription>
-                                </DialogHeader>
-                                <div className="grid gap-4 py-4">
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                        <Label htmlFor="employee" className="text-right">
-                                            Employee
-                                        </Label>
-                                        <Select onValueChange={setSelectedEmployeeId} value={selectedEmployeeId}>
-                                            <SelectTrigger className="col-span-3">
-                                                 <SelectValue placeholder="Select employee" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {employees.map(emp => (
-                                                    <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                        <Label htmlFor="status" className="text-right">
-                                            Status
-                                        </Label>
-                                        <Select value={formStatus} onValueChange={(v: any) => setFormStatus(v)}>
-                                            <SelectTrigger className="col-span-3">
-                                                 <SelectValue placeholder="Select status" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="present">Present</SelectItem>
-                                                <SelectItem value="late">Late</SelectItem>
-                                                <SelectItem value="absent">Absent</SelectItem>
-                                                <SelectItem value="half-day">Half Day</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                     <div className="grid grid-cols-4 items-center gap-4">
-                                        <Label htmlFor="time" className="text-right">
-                                            Check In
-                                        </Label>
-                                        <Input 
-                                            id="time" 
-                                            type="time" 
-                                            className="col-span-3" 
-                                            value={checkInTime}
-                                            onChange={(e) => setCheckInTime(e.target.value)}
-                                        />
-                                    </div>
-                                </div>
-                                <DialogFooter>
-                                    <Button onClick={handleSaveAttendance} disabled={!selectedEmployeeId}>Save Record</Button>
-                                </DialogFooter>
-                            </DialogContent>
-                        </Dialog>
-                        
-                        <Button className="w-full justify-start" variant="outline">
-                            <Filter className="mr-2 h-4 w-4" />
-                            Export Report
-                        </Button>
+                            </>
+                        )}
                     </CardContent>
                 </Card>
             </div>
@@ -250,14 +261,18 @@ export function AttendanceView() {
                     
                     <div className="flex items-center gap-2 w-full sm:w-auto">
                         <div className="relative w-full sm:w-64">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                type="search"
-                                placeholder="Search employee..."
-                                className="pl-8 bg-background"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
+                            {user?.role !== 'employee' && (
+                                <>
+                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    type="search"
+                                    placeholder="Search employee..."
+                                    className="pl-8 bg-background"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                                </>
+                            )}
                         </div>
                         <Select value={filter} onValueChange={(v: any) => setFilter(v)}>
                             <SelectTrigger className="w-[140px]">
@@ -316,7 +331,7 @@ export function AttendanceView() {
                                         <Badge variant={
                                                 record.status === 'present' ? 'default' : 
                                                 record.status === 'late' ? 'secondary' : 
-                                                record.status === 'half-day' ? 'warning' : 'destructive'
+                                                record.status === 'half-day' ? 'secondary' : 'destructive'
                                             }
                                             className={
                                                 cn("w-24 justify-center py-1", 
