@@ -91,7 +91,7 @@ export function AttendanceView() {
           date: format(date, "yyyy-MM-dd"),
           status: formStatus,
           checkIn: checkInTime,
-          checkOut: formStatus === 'present' ? '17:00' : undefined // Mock checkout for simplicity
+          checkOut: formStatus === 'present' ? '17:00' : undefined 
       })
       setIsDialogOpen(false)
       // Reset form
